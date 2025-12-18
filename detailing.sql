@@ -12,7 +12,7 @@ CREATE TABLE Client (
 
 CREATE TABLE Car (
     car_id SERIAL PRIMARY KEY,
-    client_id INT NOT NULL, -- УБРАЛИ UNIQUE!
+    client_id INT NOT NULL, -- УБРАЛ UNIQUE!
     brand VARCHAR(50) NOT NULL,
     model VARCHAR(50) NOT NULL,
     year INT NOT NULL,
@@ -434,3 +434,4 @@ BEGIN
     RAISE NOTICE '• create_order_with_car() - создать заказ для машины';
     RAISE NOTICE '================================================';
 END $$;
+
