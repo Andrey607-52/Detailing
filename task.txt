@@ -1,10 +1,10 @@
 -- =============================================
--- ЗАДАНИЕ 1: Заказ с id '1' с массивами услуг и материалов
+-- ЗАДАНИЕ 1: Заказ с id 'x' с массивами услуг и материалов
 -- =============================================
 
 SELECT 
     o.order_id,
-    -- Массив услуг как объектов
+    
     ARRAY(
         SELECT jsonb_build_object(
             'service_name', s.service_name,
@@ -15,12 +15,11 @@ SELECT
         WHERE os.order_id = o.order_id
     ) as services,
     
-    -- Массив материалов как объектов  
     ARRAY(
         SELECT jsonb_build_object(
             'material_name', m.material_name,
             'количество', mu.quantity_used,
-            'стоимость', mu.cost
+            'стоимость', ROUND((mu.quantity_used * m.price_per_unit)::numeric, 2)
         )
         FROM Material_Usage mu
         JOIN Material m ON mu.material_id = m.material_id
@@ -28,7 +27,7 @@ SELECT
     ) as materials
     
 FROM "Order" o
-WHERE o.order_id = 1;  -- замените 1 на нужный ID
+WHERE o.order_id = 2;  -- замените 1 на нужный ID
 
 -- 2) Самые продаваемые материалы топ 5
 SELECT 
@@ -39,6 +38,9 @@ LEFT JOIN Material_Usage mu ON m.material_id = mu.material_id
 GROUP BY m.material_id, m.material_name
 ORDER BY раз_использован DESC
 LIMIT 5;
+
+
+
 
 -- 3) Выручка со всех заказов за период
 SELECT 
