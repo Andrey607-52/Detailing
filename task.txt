@@ -1,141 +1,31 @@
--- ========================================================
--- ЗАДАНИЕ 1: Выбрать заказ с id 'x' со всеми материалами и услугами
--- Требуемые колонки: order_id, services, materials
--- Формат: 
---   services - массив объектов {service_name, price}
---   materials - массив объектов {material_name, количество, стоимость}
--- ========================================================
-
-WITH order_details AS (
-    SELECT 
-        o.order_id,
-        -- Собираем услуги в массив объектов JSON
-        COALESCE(
-            json_agg(
-                DISTINCT jsonb_build_object(
-                    'service_name', s.service_name,
-                    'price', os.actual_price
-                )
-            ) FILTER (WHERE os.order_service_id IS NOT NULL),
-            '[]'::json
-        ) AS services,
-        -- Собираем материалы в массив объектов JSON
-        COALESCE(
-            json_agg(
-                jsonb_build_object(
-                    'material_name', m.material_name,
-                    'количество', ROUND(mu.quantity_used::numeric, 2),
-                    'стоимость', ROUND(mu.cost::numeric, 2)
-                )
-            ) FILTER (WHERE mu.usage_id IS NOT NULL),
-            '[]'::json
-        ) AS materials
-    FROM "Order" o
-    LEFT JOIN Order_Service os ON o.order_id = os.order_id
-    LEFT JOIN Service s ON os.service_id = s.service_id
-    LEFT JOIN Material_Usage mu ON o.order_id = mu.order_id
-    LEFT JOIN Material m ON mu.material_id = m.material_id
-    WHERE o.order_id = x  -- ПАРАМЕТР: ID заказа (здесь пример: x)
-    GROUP BY o.order_id
-)
+-- 1) Выбрать заказ с id 1
 SELECT 
-    order_id,
-    services,
-    materials
-FROM order_details;
+    o.order_id,
+    o.order_date,
+    c.full_name as клиент,
+    car.brand || ' ' || car.model as автомобиль
+FROM "Order" o
+JOIN Client c ON o.client_id = c.client_id
+JOIN Car car ON o.car_id = car.car_id
+WHERE o.order_id = 1;
 
--- ========================================================
--- ЗАДАНИЕ 2: Выбрать самые продаваемые материалы топ 5
--- Критерий: по общему количеству проданных материалов
--- ========================================================
-
+-- 2) Самые продаваемые материалы топ 5
 SELECT 
-    m.material_name AS "Название материала",
-    m.unit AS "Единица измерения",
-    ROUND(SUM(mu.quantity_used)::numeric, 2) AS "Количество продано",
-    ROUND(SUM(mu.cost)::numeric, 2) AS "Общая стоимость",
-    ROUND(AVG(m.price_per_unit)::numeric, 2) AS "Средняя цена за единицу",
-    COUNT(DISTINCT mu.order_id) AS "Количество заказов",
-    COUNT(DISTINCT o.client_id) AS "Количество клиентов"
-FROM Material_Usage mu
-JOIN Material m ON mu.material_id = m.material_id
-JOIN "Order" o ON mu.order_id = o.order_id
-WHERE o.status = 'completed'  -- Учитываем только завершенные заказы
-GROUP BY m.material_id, m.material_name, m.unit
-ORDER BY SUM(mu.quantity_used) DESC  -- Сортировка по количеству (основной критерий)
+    m.material_name,
+    COUNT(mu.usage_id) as раз_использован
+FROM Material m
+LEFT JOIN Material_Usage mu ON m.material_id = mu.material_id
+GROUP BY m.material_id, m.material_name
+ORDER BY раз_использован DESC
 LIMIT 5;
 
--- ========================================================
--- ЗАДАНИЕ 3: Подсчитать выручку со всех заказов за период между 'x' и 'y' датами
--- Учитываются только завершенные заказы (status = 'completed')
--- ========================================================
-
--- Вариант 3.1: Основная статистика по выручке
-WITH revenue_calculation AS (
-    SELECT 
-        o.order_id,
-        o.order_date,
-        -- Выручка из услуг
-        COALESCE(SUM(os.actual_price), 0) AS services_revenue,
-        -- Выручка из материалов
-        COALESCE(SUM(mu.cost), 0) AS materials_revenue,
-        -- Общая выручка
-        COALESCE(SUM(os.actual_price), 0) + COALESCE(SUM(mu.cost), 0) AS total_revenue
-    FROM "Order" o
-    LEFT JOIN Order_Service os ON o.order_id = os.order_id
-    LEFT JOIN Material_Usage mu ON o.order_id = mu.order_id
-    WHERE o.order_date BETWEEN '2025-01-01' AND '2025-12-31'  -- ПАРАМЕТРЫ: начальная и конечная даты
-      AND o.status = 'completed'  -- Только завершенные заказы
-    GROUP BY o.order_id, o.order_date
-)
+-- 3) Выручка со всех заказов за период
 SELECT 
-    -- Основные показатели
-    COUNT(order_id) AS "Количество заказов",
-    ROUND(SUM(total_revenue)::numeric, 2) AS "Общая выручка",
-    ROUND(SUM(services_revenue)::numeric, 2) AS "Выручка от услуг",
-    ROUND(SUM(materials_revenue)::numeric, 2) AS "Выручка от материалов",
-    
-    -- Дополнительная статистика
-    ROUND(AVG(total_revenue)::numeric, 2) AS "Средний чек",
-    MIN(order_date)::date AS "Первый заказ",
-    MAX(order_date)::date AS "Последний заказ",
-    
-    -- Доли в выручке
-    ROUND((SUM(services_revenue) * 100.0 / NULLIF(SUM(total_revenue), 0))::numeric, 2) 
-        AS "Доля услуг, %",
-    ROUND((SUM(materials_revenue) * 100.0 / NULLIF(SUM(total_revenue), 0))::numeric, 2) 
-        AS "Доля материалов, %"
-FROM revenue_calculation;
-
--- ========================================================
--- ДОПОЛНИТЕЛЬНО: Детализация выручки по месяцам (для анализа)
--- ========================================================
-
-SELECT 
-    TO_CHAR(o.order_date, 'YYYY-MM') AS "Месяц",
-    COUNT(DISTINCT o.order_id) AS "Количество заказов",
-    COUNT(DISTINCT o.client_id) AS "Уникальных клиентов",
-    ROUND(SUM(os.actual_price)::numeric, 2) AS "Выручка от услуг",
-    ROUND(SUM(mu.cost)::numeric, 2) AS "Выручка от материалов",
-    ROUND((SUM(os.actual_price) + SUM(mu.cost))::numeric, 2) AS "Общая выручка",
-    ROUND(AVG(os.actual_price + mu.cost)::numeric, 2) AS "Средний чек"
-FROM "Order" o
-LEFT JOIN Order_Service os ON o.order_id = os.order_id
-LEFT JOIN Material_Usage mu ON o.order_id = mu.order_id
-WHERE o.order_date BETWEEN '2025-01-01' AND '2025-12-31'
-  AND o.status = 'completed'
-GROUP BY TO_CHAR(o.order_date, 'YYYY-MM')
-ORDER BY "Месяц";
-
-
-
-
--- ========================================================
--- ПРИМЕЧАНИЯ:
- Запросы используют:
---    - JOIN для связывания таблиц
---    - Агрегатные функции (SUM, COUNT, AVG)
---    - Обработку NULL через COALESCE
---    - Форматирование через ROUND
---    - JSON функции для структурирования данных
---
+    EXTRACT(YEAR FROM order_date) as год,
+    EXTRACT(MONTH FROM order_date) as месяц,
+    SUM(total_amount) as выручка
+FROM "Order"
+WHERE order_date BETWEEN '2025-01-01' AND '2025-12-31'
+  AND status = 'completed'
+GROUP BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date)
+ORDER BY год, месяц;
