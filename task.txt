@@ -27,7 +27,7 @@ SELECT
     ) as materials
     
 FROM "Order" o
-WHERE o.order_id = 2;  -- замените 1 на нужный ID
+WHERE o.order_id = 1;  -- замените 1 на нужный ID
 
 -- 2) Самые продаваемые материалы топ 5
 SELECT 
