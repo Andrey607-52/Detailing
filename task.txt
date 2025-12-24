@@ -1,13 +1,34 @@
--- 1) Выбрать заказ с id 1
+-- =============================================
+-- ЗАДАНИЕ 1: Заказ с id '1' с массивами услуг и материалов
+-- =============================================
+
 SELECT 
     o.order_id,
-    o.order_date,
-    c.full_name as клиент,
-    car.brand || ' ' || car.model as автомобиль
+    -- Массив услуг как объектов
+    ARRAY(
+        SELECT jsonb_build_object(
+            'service_name', s.service_name,
+            'price', os.actual_price
+        )
+        FROM Order_Service os
+        JOIN Service s ON os.service_id = s.service_id
+        WHERE os.order_id = o.order_id
+    ) as services,
+    
+    -- Массив материалов как объектов  
+    ARRAY(
+        SELECT jsonb_build_object(
+            'material_name', m.material_name,
+            'количество', mu.quantity_used,
+            'стоимость', mu.cost
+        )
+        FROM Material_Usage mu
+        JOIN Material m ON mu.material_id = m.material_id
+        WHERE mu.order_id = o.order_id
+    ) as materials
+    
 FROM "Order" o
-JOIN Client c ON o.client_id = c.client_id
-JOIN Car car ON o.car_id = car.car_id
-WHERE o.order_id = 1;
+WHERE o.order_id = 1;  -- замените 1 на нужный ID
 
 -- 2) Самые продаваемые материалы топ 5
 SELECT 
@@ -28,4 +49,4 @@ FROM "Order"
 WHERE order_date BETWEEN '2025-01-01' AND '2025-12-31'
   AND status = 'completed'
 GROUP BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date)
-ORDER BY год, месяц;
+ORDER BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date);
