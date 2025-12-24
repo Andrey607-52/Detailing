@@ -95,9 +95,7 @@ CREATE TABLE Material_Usage (
     employee_id INT,
     quantity_used DECIMAL(10,2) NOT NULL,
     usage_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    cost DECIMAL(10,2) GENERATED ALWAYS AS (quantity_used * (
-        SELECT price_per_unit FROM Material WHERE material_id = Material_Usage.material_id
-    )) STORED,
+    -- Убираем generated column
     FOREIGN KEY (order_id) REFERENCES "Order"(order_id) ON DELETE CASCADE,
     FOREIGN KEY (material_id) REFERENCES Material(material_id) ON DELETE CASCADE,
     FOREIGN KEY (employee_id) REFERENCES Employee(employee_id) ON DELETE SET NULL,
@@ -351,9 +349,7 @@ FROM Car
 GROUP BY brand
 ORDER BY total_cars DESC;
 
--- =============================================
--- ТЕСТОВЫЕ ДАННЫЕ ДЛЯ ПРОВЕРКИ
--- =============================================
+
 
 -- Вставляем тестовых клиентов
 INSERT INTO Client (full_name, phone, email, is_regular, discount_percent) VALUES
@@ -376,62 +372,82 @@ INSERT INTO Employee (full_name, position, phone, email, salary) VALUES
 ('Волков Андрей Николаевич', 'мастер', '+79166789012', 'volkov@detailing.ru', 85000.00),
 ('Семенова Ольга Викторовна', 'администратор', '+79167890123', 'semenova@detailing.ru', 65000.00);
 
--- Добавляем услуги
-INSERT INTO Service (service_name, price) VALUES
-('Стандартная мойка', 1500.00),
-('Комплексная мойка', 3000.00),
-('Керамическое покрытие', 35000.00),
-('Полировка кузова', 15000.00);
+
+-- Создаем заказ
+SELECT create_order_with_car(1, 1, 1) as new_order_id;
+
+-- Добавляем услуги к заказу
+INSERT INTO Order_Service (order_id, service_id, employee_id, actual_price) VALUES
+(2, 1, 1, 1500.00),  -- Стандартная мойка
+(2, 4, 1, 15000.00); -- Полировка кузова
+
+-- Добавляем использование материалов
+INSERT INTO Material_Usage (order_id, material_id, employee_id, quantity_used) VALUES
+(2, 1, 1, 2.00),  -- Шампунь 2 литра
+(2, 2, 1, 0.50),  -- Воск 0.5 кг
+(2, 3, 1, 10.00); -- Салфетки 10 шт
+
+
+
+
+
+-- Обновляем статус заказа
+UPDATE "Order" SET status = 'completed' WHERE order_id = 2;
+
+
 
 -- =============================================
--- ДЕМОНСТРАЦИОННЫЕ ЗАПРОСЫ
+-- ЗАДАНИЕ 1: Заказ с id 'x' с массивами услуг и материалов
 -- =============================================
 
--- 1. Показать всех клиентов и их автомобили
-SELECT '=== Все клиенты и их автомобили ===' AS info;
-SELECT * FROM clients_with_cars ORDER BY client_id;
+SELECT 
+    o.order_id,
+    
+    ARRAY(
+        SELECT jsonb_build_object(
+            'service_name', s.service_name,
+            'price', os.actual_price
+        )
+        FROM Order_Service os
+        JOIN Service s ON os.service_id = s.service_id
+        WHERE os.order_id = o.order_id
+    ) as services,
+    
+    ARRAY(
+        SELECT jsonb_build_object(
+            'material_name', m.material_name,
+            'количество', mu.quantity_used,
+            'стоимость', ROUND((mu.quantity_used * m.price_per_unit)::numeric, 2)
+        )
+        FROM Material_Usage mu
+        JOIN Material m ON mu.material_id = m.material_id
+        WHERE mu.order_id = o.order_id
+    ) as materials
+    
+FROM "Order" o
+WHERE o.order_id = 2;  -- замените  на нужный ID
 
--- 2. Показать все автомобили конкретного клиента (Иванова)
-SELECT '=== Автомобили клиента Иванов И.И. ===' AS info;
-SELECT * FROM get_client_cars(1);
+-- 2) Самые продаваемые материалы топ 5
+SELECT 
+    m.material_name,
+    COUNT(mu.usage_id) as раз_использован
+FROM Material m
+LEFT JOIN Material_Usage mu ON m.material_id = mu.material_id
+GROUP BY m.material_id, m.material_name
+ORDER BY раз_использован DESC
+LIMIT 5;
 
--- 3. Создать заказ для Иванова на его Toyota
-SELECT '=== Создание заказа для Toyota Иванова ===' AS info;
-SELECT create_order_with_car(1, 1, 1) AS new_order_id;
 
--- 4. Создать заказ для Иванова на его BMW (автоматически выберется)
-SELECT '=== Создание заказа для BMW Иванова (второй заказ) ===' AS info;
-SELECT create_order_with_car(1, 2, 1) AS new_order_id;
 
--- 5. Попробовать создать заказ для несуществующей связи клиент-автомобиль
--- SELECT create_order_with_car(2, 1, 1); -- Должна быть ошибка
 
--- 6. Показать статистику по маркам автомобилей
-SELECT '=== Статистика по маркам автомобилей ===' AS info;
-SELECT * FROM cars_statistics;
-
--- 7. Показать детальную информацию по всем автомобилям
-SELECT '=== Детальная информация по автомобилям ===' AS info;
-SELECT * FROM cars_detailed ORDER BY owner_name, brand;
-
--- =============================================
--- ФИНАЛЬНОЕ СООБЩЕНИЕ
--- =============================================
-DO $$
-BEGIN
-    RAISE NOTICE '================================================';
-    RAISE NOTICE 'БАЗА ДАННЫХ УСПЕШНО СОЗДАНА И НАСТРОЕНА!';
-    RAISE NOTICE '================================================';
-    RAISE NOTICE 'Ключевые изменения:';
-    RAISE NOTICE '• Связь Client-Car изменена с 1:1 на 1:N';
-    RAISE NOTICE '• Один клиент теперь может иметь несколько машин';
-    RAISE NOTICE '• При создании заказа необходимо указывать car_id';
-    RAISE NOTICE '• Добавлен флаг is_active для автомобилей';
-    RAISE NOTICE '================================================';
-    RAISE NOTICE 'Для работы с несколькими машинами используйте:';
-    RAISE NOTICE '• get_client_cars(client_id) - все машины клиента';
-    RAISE NOTICE '• add_car_to_client() - добавить новую машину';
-    RAISE NOTICE '• create_order_with_car() - создать заказ для машины';
-    RAISE NOTICE '================================================';
-END $$;
+-- 3) Выручка со всех заказов за период
+SELECT 
+    EXTRACT(YEAR FROM order_date) as год,
+    EXTRACT(MONTH FROM order_date) as месяц,
+    SUM(total_amount) as выручка
+FROM "Order"
+WHERE order_date BETWEEN '2025-01-01' AND '2025-12-31'
+  AND status = 'completed'
+GROUP BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date)
+ORDER BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date);
 
