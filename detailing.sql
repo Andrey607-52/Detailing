@@ -378,21 +378,21 @@ SELECT create_order_with_car(1, 1, 1) as new_order_id;
 
 -- Добавляем услуги к заказу
 INSERT INTO Order_Service (order_id, service_id, employee_id, actual_price) VALUES
-(2, 1, 1, 1500.00),  -- Стандартная мойка
-(2, 4, 1, 15000.00); -- Полировка кузова
+(1, 1, 1, 1500.00),  -- Стандартная мойка
+(1, 4, 1, 15000.00); -- Полировка кузова
 
 -- Добавляем использование материалов
 INSERT INTO Material_Usage (order_id, material_id, employee_id, quantity_used) VALUES
-(2, 1, 1, 2.00),  -- Шампунь 2 литра
-(2, 2, 1, 0.50),  -- Воск 0.5 кг
-(2, 3, 1, 10.00); -- Салфетки 10 шт
+(1, 1, 1, 2.00),  -- Шампунь 2 литра
+(1, 2, 1, 0.50),  -- Воск 0.5 кг
+(1, 3, 1, 10.00); -- Салфетки 10 шт
 
 
 
 
 
 -- Обновляем статус заказа
-UPDATE "Order" SET status = 'completed' WHERE order_id = 2;
+UPDATE "Order" SET status = 'completed' WHERE order_id = 1;
 
 
 
@@ -425,7 +425,7 @@ SELECT
     ) as materials
     
 FROM "Order" o
-WHERE o.order_id = 2;  -- замените  на нужный ID
+WHERE o.order_id = 1;  -- замените  на нужный ID
 
 -- 2) Самые продаваемые материалы топ 5
 SELECT 
@@ -450,4 +450,5 @@ WHERE order_date BETWEEN '2025-01-01' AND '2025-12-31'
   AND status = 'completed'
 GROUP BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date)
 ORDER BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date);
+
 
