@@ -7,8 +7,8 @@ SELECT
     
     ARRAY(
         SELECT jsonb_build_object(
-            'service_name', s.service_name,
-            'price', os.actual_price
+            'название услуги', s.service_name,
+            'цена', os.actual_price
         )
         FROM Order_Service os
         JOIN Service s ON os.service_id = s.service_id
@@ -17,7 +17,7 @@ SELECT
     
     ARRAY(
         SELECT jsonb_build_object(
-            'material_name', m.material_name,
+            'название материала', m.material_name,
             'количество', mu.quantity_used,
             'стоимость', ROUND((mu.quantity_used * m.price_per_unit)::numeric, 2)
         )
@@ -38,8 +38,6 @@ LEFT JOIN Material_Usage mu ON m.material_id = mu.material_id
 GROUP BY m.material_id, m.material_name
 ORDER BY раз_использован DESC
 LIMIT 5;
-
-
 
 
 -- 3) Выручка со всех заказов за период
