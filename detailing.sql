@@ -384,6 +384,8 @@ INSERT INTO Material_Usage (order_id, material_id, employee_id, quantity_used) V
 (1, 1, 1, 2.00),  -- Шампунь 2 литра
 (1, 2, 1, 0.50),  -- Воск 0.5 кг
 (1, 3, 1, 10.00); -- Салфетки 10 шт
+
+
 -- Создаем еще тестовые заказы с выручкой
 INSERT INTO "Order" (client_id, car_id, employee_id, order_date, status, total_amount)
 VALUES 
@@ -411,8 +413,8 @@ SELECT
     
     ARRAY(
         SELECT jsonb_build_object(
-            'service_name', s.service_name,
-            'price', os.actual_price
+            'название услуги', s.service_name,
+            'цена', os.actual_price
         )
         FROM Order_Service os
         JOIN Service s ON os.service_id = s.service_id
@@ -421,7 +423,7 @@ SELECT
     
     ARRAY(
         SELECT jsonb_build_object(
-            'material_name', m.material_name,
+            'название материала', m.material_name,
             'количество', mu.quantity_used,
             'стоимость', ROUND((mu.quantity_used * m.price_per_unit)::numeric, 2)
         )
