@@ -114,7 +114,7 @@ CREATE TABLE Service_Material (
     UNIQUE(service_id, material_id)
 );
 
--- =============================================
+
 -- ИНДЕКСЫ
 -- =============================================
 CREATE INDEX idx_client_phone ON Client(phone);
@@ -239,7 +239,7 @@ CREATE OR REPLACE FUNCTION create_order_with_car(
 DECLARE
     v_order_id INT;
 BEGIN
-    -- Автоматическая проверка триггером validate_order_client_car_1n
+    
     
     -- Создание заказа
     INSERT INTO "Order" (client_id, car_id, employee_id)
@@ -278,9 +278,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- =============================================
--- ОБНОВЛЕННЫЕ ПРЕДСТАВЛЕНИЯ
--- =============================================
+
 
 -- Представление: клиенты со всеми их автомобилями
 CREATE OR REPLACE VIEW clients_with_cars AS
@@ -386,6 +384,14 @@ INSERT INTO Material_Usage (order_id, material_id, employee_id, quantity_used) V
 (1, 1, 1, 2.00),  -- Шампунь 2 литра
 (1, 2, 1, 0.50),  -- Воск 0.5 кг
 (1, 3, 1, 10.00); -- Салфетки 10 шт
+-- Создаем еще тестовые заказы с выручкой
+INSERT INTO "Order" (client_id, car_id, employee_id, order_date, status, total_amount)
+VALUES 
+    (1, 2, 1, '2025-01-15 10:00:00', 'completed', 12000.00),
+    (2, 4, 1, '2025-02-20 11:00:00', 'completed', 8000.00),
+    (3, 5, 1, '2025-03-10 14:00:00', 'completed', 15000.00),
+    (1, 3, 1, '2025-04-05 09:00:00', 'completed', 7000.00),
+    (2, 4, 1, '2025-05-12 16:00:00', 'completed', 9000.00);
 
 
 
@@ -425,7 +431,7 @@ SELECT
     ) as materials
     
 FROM "Order" o
-WHERE o.order_id = 1;  -- замените  на нужный ID
+WHERE o.order_id = 1;  -- замените 1 на нужный ID
 
 -- 2) Самые продаваемые материалы топ 5
 SELECT 
@@ -438,8 +444,6 @@ ORDER BY раз_использован DESC
 LIMIT 5;
 
 
-
-
 -- 3) Выручка со всех заказов за период
 SELECT 
     EXTRACT(YEAR FROM order_date) as год,
@@ -450,5 +454,3 @@ WHERE order_date BETWEEN '2025-01-01' AND '2025-12-31'
   AND status = 'completed'
 GROUP BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date)
 ORDER BY EXTRACT(YEAR FROM order_date), EXTRACT(MONTH FROM order_date);
-
-
